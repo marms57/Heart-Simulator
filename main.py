@@ -8,8 +8,8 @@ screen = pygame.display.set_mode((600, 400))
 clock = pygame.time.Clock()
 
 # CLINICAL DATA (change these to see the difference)
-ejection_fraction = 0.65 #healthy
-#ejection_fraction = 0.25 #HF
+#ejection_fraction = 0.70 #healthy
+ejection_fraction = 0.25 #HF
 
 #---- PARTICLE LIST ----
 blood_particles=[]
@@ -34,14 +34,31 @@ while running:
     # 3.1 ---- TRIGGER BLOOD FLOW ----
     # math.cos(t) helps us detect the down beat of the sine wave
     if math.cos(t) > 0.8:
-        #create a new particle at the heart's center
-        #speed is tied directly to ejection fraction
-        speed = ejection_fraction * 15
-        blood_particles.append([200, 200, speed])
+        #add scatter to the starting point of the heart
+
+        start_x = 200 + random.uniform(-5, 5)
+        start_y = 200 + random.uniform(-5, 5)
+
+        #add randomness to speed of ejection fraction
+        speed = (ejection_fraction * 10) + random.uniform(5, -5)
+        lift = 8 + random.uniform(1, -1.5) #intial upward force of the contraction, with randomness add to lift
+        blood_particles.append([200, 200, speed, lift])
 
         # 3.1.1 ---- UPDATE AND DRAW THE PARTICLES ----
-        for p in blood_particles[:]: #iterate over copy of the list
-            p[0] += p[2] #moves particle to the right based on the screen
+        
+        gravity = 0.2 #pulls blood down aorta
+
+
+    for p in blood_particles[:]: #iterate over copy of the list
+            # p[0] is x (horizontal),  p[1] is Y (vertical), p[2] is speed
+            # add the 4th value: p[3] for vertical lift
+
+            #Move the particle
+            p[0] += p[2] #constant right upward flow 
+            p[1] -= p[3] #intial upward blast from the ventricle
+
+            #apply the gravity
+            p[3] -= gravity
 
             # draw the blood drop
             pygame.draw.circle(screen,(220, 20, 60), (int(p[0]), int(p[1])), 4)
