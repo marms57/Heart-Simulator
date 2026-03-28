@@ -11,6 +11,10 @@ clock = pygame.time.Clock()
 #ejection_fraction = 0.70 #healthy
 ejection_fraction = 0.25 #HF
 
+#Draw the aorta
+aorta_rect = pygame.Rect(150, 50, 300, 300) # invisible walls for the arch
+AORTA_COLOR = (100, 100, 100) #grey
+
 #---- PARTICLE LIST ----
 blood_particles=[]
 
@@ -37,16 +41,17 @@ while running:
         #add scatter to the starting point of the heart
 
         start_x = 200 + random.uniform(-5, 5)
-        start_y = 200 + random.uniform(-5, 5)
+        start_y = 120 + random.uniform(-5, 5)
 
         #add randomness to speed of ejection fraction
-        speed = (ejection_fraction * 10) + random.uniform(5, -5)
-        lift = 8 + random.uniform(1, -1.5) #intial upward force of the contraction, with randomness add to lift
-        blood_particles.append([200, 200, speed, lift])
+        speed = abs((ejection_fraction * 12) + random.uniform(2, 4))
+        lift = 10 + random.uniform(1, 1) #intial upward force of the contraction, with randomness add to lift
+        blood_particles.append([start_x, start_y, speed, lift])
 
         # 3.1.1 ---- UPDATE AND DRAW THE PARTICLES ----
         
         gravity = 0.2 #pulls blood down aorta
+        center_x, center_y = 200, 125
 
 
     for p in blood_particles[:]: #iterate over copy of the list
@@ -56,9 +61,22 @@ while running:
             #Move the particle
             p[0] += p[2] #constant right upward flow 
             p[1] -= p[3] #intial upward blast from the ventricle
+            p[3] -= gravity #apply the gravity
 
-            #apply the gravity
-            p[3] -= gravity
+            # ---- COLLISION LOGIC ----
+            dx = p[0] - center_x
+            dy = p[1] - center_y
+            distance = math.sqrt(dx**2 + dy**2)
+
+            #1. Outer wall logic
+            if distance > 150:
+                 p[3] *= -0.5 #bounce down
+                 p[1] += 2 #push back inside
+
+            # 2. Inner wall logic
+            if distance < 110 and p[0] > 250:
+                 p[3] *= -0.5
+                 p[1] -= 2
 
             # draw the blood drop
             pygame.draw.circle(screen,(220, 20, 60), (int(p[0]), int(p[1])), 4)
@@ -68,13 +86,25 @@ while running:
                 blood_particles.remove(p)
 
 
-    # 4. ---- DRAW THE HEART ----
-    # Circle is place holder for ventricle for now
+    # 4.0 ---- DRAW THE HEART ----
 
+    # Circle is place holder for ventricle for now
     pygame.draw.circle(screen, (220, 20, 60), (200, 200), int(current_radius))
+
+        #outer wall
+    pygame.draw.arc(screen, AORTA_COLOR, aorta_rect, -0.2, 3.14, 5)
+
+    #inner wall
+    inner_rect = aorta_rect.inflate(-100, -100)
+    pygame.draw.arc(screen, AORTA_COLOR, inner_rect, -0.1, 3.14, 5)
                    
     pygame.display.flip()
     t += 0.1 #speed of heartbeat
     clock.tick(60) #run at 60 FPS
+
+    # 4.1 ---- AORTA WALLS ----
+    # draw.arc(surface, color, rect, start_angle, stop_angle, width)
+    # Angles are in Radians. 0 is Right, 3.14 is Left.
+
 
 pygame.quit()
