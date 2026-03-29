@@ -10,8 +10,8 @@ screen = pygame.display.set_mode((600, 400))
 clock = pygame.time.Clock()
 
 # CLINICAL DATA (change these to see the difference)
-ejection_fraction = 0.80 # healthy
-#ejection_fraction = 0.25 # HF
+#ejection_fraction = 0.80 # healthy
+ejection_fraction = 0.25 # HF
 
 bpm = 60 #resting HR
 
@@ -20,7 +20,7 @@ aorta_rect = pygame.Rect(150, 50, 300, 300) # invisible walls for the arch
 AORTA_COLOR = (100, 100, 100) # grey
 
 # ---- PARTICLE LIST ----
-blood_particles=[]
+blood_particles = []
 
 # 2. ---- MAIN LOOP ----
 running = True
@@ -35,7 +35,7 @@ while running:
             if event.key == pygame.K_UP:
                 bpm = min(220, bpm + 10) # heart rate capped
             if event.key == pygame.K_DOWN:
-                bpm = max(30, bpm - 10) #bradycardia
+                bpm = max(30, bpm - 10) # bradycardia
 
     screen.fill((255, 255, 255)) # White background
 
@@ -51,9 +51,9 @@ while running:
             start_x = 220 + random.uniform(-8, 8)
             start_y = 120 + random.uniform(-8, 8)
 
-        speed = abs((ejection_fraction * 10) + random.uniform(2, 4))
-        lift = 12 + random.uniform(-1, 2) 
-        blood_particles.append([start_x, start_y, speed, lift])
+            speed = abs((ejection_fraction * 10) + random.uniform(2, 4))
+            lift = 12 + random.uniform(-1, 2) 
+            blood_particles.append([start_x, start_y, speed, lift])
 
     # 3.1.1 ---- UPDATE AND DRAW THE PARTICLES ----
     gravity = 0.1 
@@ -67,11 +67,14 @@ while running:
         p[3] -= gravity 
 
         if p[0] > center_x:
-            p[2] -= 0.05 #Gravity against forward motion
+            # Prevent negative velocity loop (wind trap)
+            if p[2] > 0:
+                p[2] -= 0.05 
 
-        p[2] *= 0.99 #peripheral resistence
+        p[2] *= 0.99 # peripheral resistance
 
-        if p[1] > 160 and p[3] < 280:
+        # Aortic Valve (Kill Zone)
+        if p[1] > 160 and p[3] < 0 and p[0] < 280:
             blood_particles.remove(p)
             continue
 
@@ -79,25 +82,28 @@ while running:
         dx = p[0] - center_x
         dy = p[1] - center_y
         distance = math.sqrt(dx**2 + dy**2)
+        angle = math.atan2(dy, dx)
 
         # 1. Outer wall logic (Radius 150)
-        if distance > 148:
-             p[3] = -abs(p[3] * 0.4) # bounce down
+        if distance > 148 and angle < 0.2:
+            p[0] = center_x + math.cos(angle) * 146
+            p[1] = center_y + math.sin(angle) * 146
 
-             if p[2] < 2: p[2] = 2
-             p[2] += 0.5    # nudge back inside
-
-             #Push back to centre of endothelium
-             angle = math.atan2(dy, dx)
-             p[0] = center_x + math.cos(angle) * 145
-             p[1] = center_y + math.sin(angle) * 145
+            # ZONE A: The Roof
+            if angle < -0.5:
+                p[3] = -abs(p[3] * 0.4) # bounce down
+                if p[2] < 2: 
+                    p[2] = 2
+                p[2] += 0.5
+            # ZONE B: The Drop
+            else:
+                p[2] *= 0.5 # Kill horizontal momentum
 
         # 2. Inner wall logic (Radius 100)
-        if distance < 105 and p[0] > 280:
-             p[3] *= -0.5
-             angle = math.atan2(dy, dx)
-             p[0] = center_x + math.cos(angle) * 110
-             p[1] = center_y + math.sin(angle) * 110
+        if distance < 105 and angle < 0.2 and p[0] > 280:
+            p[3] *= -0.5
+            p[0] = center_x + math.cos(angle) * 110
+            p[1] = center_y + math.sin(angle) * 110
 
         # draw the blood drop
         pygame.draw.circle(screen, (220, 20, 60), (int(p[0]), int(p[1])), 4)
@@ -116,8 +122,8 @@ while running:
     inner_rect = aorta_rect.inflate(-100, -100)
     pygame.draw.arc(screen, AORTA_COLOR, inner_rect, -0.1, 3.14, 5)
 
-    #Clinical monitor (BPM)
-    bpm_text = my_font.render(f"Heart Rate: {bpm} BPM:", True, (50, 50, 50))
+    # Clinical monitor (BPM)
+    bpm_text = my_font.render(f"Heart Rate: {bpm} BPM", True, (50, 50, 50))
     screen.blit(bpm_text, (20, 20))
                     
     pygame.display.flip()
