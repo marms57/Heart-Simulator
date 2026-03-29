@@ -4,12 +4,16 @@ import random
 
 # 1. ---- SETTINGS ----
 pygame.init()
+pygame.font.init()
+my_font = pygame.font.SysFont('arial', 24)
 screen = pygame.display.set_mode((600, 400))
 clock = pygame.time.Clock()
 
 # CLINICAL DATA (change these to see the difference)
-#ejection_fraction = 0.70 # healthy
-ejection_fraction = 0.25 # HF
+ejection_fraction = 0.70 # healthy
+#ejection_fraction = 0.25 # HF
+
+bpm = 60 #resting HR
 
 # Draw the aorta
 aorta_rect = pygame.Rect(150, 50, 300, 300) # invisible walls for the arch
@@ -26,6 +30,12 @@ while running:
     for event in pygame.event.get():
         if event.type == pygame.QUIT:
             running = False
+
+        if event.type == pygame.KEYDOWN:
+            if event.key == pygame.K_UP:
+                bpm = min(220, bpm + 10) # heart rate capped
+            if event.key == pygame.K_DOWN:
+                bpm = max(30, bpm - 10) #bradycardia
 
     screen.fill((255, 255, 255)) # White background
 
@@ -103,9 +113,13 @@ while running:
     # inner wall
     inner_rect = aorta_rect.inflate(-100, -100)
     pygame.draw.arc(screen, AORTA_COLOR, inner_rect, -0.1, 3.14, 5)
+
+    #Clinical monitor (BPM)
+    bpm_text = my_font.render(f"Heart Rate: {bpm} BPM:", True, (50, 50, 50))
+    screen.blit(bpm_text, (20, 20))
                     
     pygame.display.flip()
-    t += 0.1 
+    t += (bpm / 60) * 0.15 
     clock.tick(60)
 
 pygame.quit()
