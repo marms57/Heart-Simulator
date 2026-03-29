@@ -10,7 +10,7 @@ screen = pygame.display.set_mode((600, 400))
 clock = pygame.time.Clock()
 
 # CLINICAL DATA (change these to see the difference)
-ejection_fraction = 0.70 # healthy
+ejection_fraction = 0.80 # healthy
 #ejection_fraction = 0.25 # HF
 
 bpm = 60 #resting HR
@@ -40,17 +40,19 @@ while running:
     screen.fill((255, 255, 255)) # White background
 
     # 3. ---- BEAT LOGIC ----
-    pulse = math.sin(t) * (ejection_fraction * 40)
+    pulse = math.cos(t) * (ejection_fraction * 40)
     current_radius = 80 + pulse
 
     # 3.1 ---- TRIGGER BLOOD FLOW ----
-    if math.cos(t) > 0.8:
+    if math.sin(t) > 0.8:
         # Spawn at the top-right of the heart circle
-        start_x = 220 + random.uniform(-5, 5)
-        start_y = 120 + random.uniform(-5, 5)
+        num_particles = int(ejection_fraction * 6) + 1
+        for _ in range(num_particles):
+            start_x = 220 + random.uniform(-8, 8)
+            start_y = 120 + random.uniform(-8, 8)
 
-        speed = abs((ejection_fraction * 8) + random.uniform(2, 4))
-        lift = 10 + random.uniform(-1, 1) 
+        speed = abs((ejection_fraction * 10) + random.uniform(2, 4))
+        lift = 12 + random.uniform(-1, 2) 
         blood_particles.append([start_x, start_y, speed, lift])
 
     # 3.1.1 ---- UPDATE AND DRAW THE PARTICLES ----
@@ -69,7 +71,7 @@ while running:
 
         p[2] *= 0.99 #peripheral resistence
 
-        if p[1] > 160 and p[3] < 0:
+        if p[1] > 160 and p[3] < 280:
             blood_particles.remove(p)
             continue
 
