@@ -10,8 +10,10 @@ screen = pygame.display.set_mode((600, 400))
 clock = pygame.time.Clock()
 
 # CLINICAL DATA (change these to see the difference)
-#ejection_fraction = 0.80 # healthy
-ejection_fraction = 0.25 # HF
+healthy_ef = 0.70 # healthy
+hf_ef = 0.25 # HF
+is_healthy = True #start simulation in healthy state
+ejection_fraction = healthy_ef
 
 bpm = 60 #resting HR
 
@@ -37,6 +39,13 @@ while running:
             if event.key == pygame.K_DOWN:
                 bpm = max(30, bpm - 10) # bradycardia
 
+            # ---- EJECTION FRACTION SWITCH ----
+            if event.key == pygame.K_SPACE:
+                is_healthy = not is_healthy #flip the state
+                ejection_fraction = healthy_ef if is_healthy else hf_ef
+
+        
+
     screen.fill((255, 255, 255)) # White background
 
     # 3. ---- BEAT LOGIC ----
@@ -46,10 +55,10 @@ while running:
     # 3.1 ---- TRIGGER BLOOD FLOW ----
     if math.sin(t) > 0.8:
         # Spawn at the top-right of the heart circle
-        num_particles = int(ejection_fraction * 6) + 1
+        num_particles = int(ejection_fraction * 100)
         for _ in range(num_particles):
-            start_x = 220 + random.uniform(-8, 8)
-            start_y = 120 + random.uniform(-8, 8)
+            start_x = 220 + random.uniform(-15, 15)
+            start_y = 120 + random.uniform(-15, 15)
 
             speed = abs((ejection_fraction * 10) + random.uniform(2, 4))
             lift = 12 + random.uniform(-1, 2) 
@@ -123,9 +132,13 @@ while running:
     pygame.draw.arc(screen, AORTA_COLOR, inner_rect, -0.1, 3.14, 5)
 
     # Clinical monitor (BPM)
+    status_text = "Healthy" if is_healthy else "Heart Failure"
+    ef_display = int(ejection_fraction * 100)
     bpm_text = my_font.render(f"Heart Rate: {bpm} BPM", True, (50, 50, 50))
+    status_render = my_font.render(f"Status: {status_text} (EF: {ef_display}%)", True, (50, 50, 50))
     screen.blit(bpm_text, (20, 20))
-                    
+    screen.blit(status_render, (20, 50))
+
     pygame.display.flip()
     t += (bpm / 60) * 0.15 
     clock.tick(60)
