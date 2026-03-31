@@ -86,9 +86,9 @@ while running:
         if p[0] > center_x:
             # Prevent negative velocity loop (wind trap)
             if p[2] > 0:
-                p[2] *= vessel_friction # apply peripheral resistance 
-
-        p[2] *= 0.99 # peripheral resistance
+                p[2] -= 0.05 
+                
+        p[2] *= vessel_friction # apply peripheral resistance 
 
         # Aortic Valve (Kill Zone)
         if p[1] > 160 and p[3] < 0 and p[0] < 280:
@@ -151,12 +151,26 @@ while running:
     else: 
         tone_text = "Low Afterload"
 
+    # ---- BLOOD PRESSURE ESTIMATION ----
+    # Base diastolic pressure by vessel tone.
+    # Normal tone (0.99) = 80 mmHg, High Afterload (0.90) = 116 mmHg
+    base_diastolic = 80 + ((0.99 - vessel_friction) * 400)
+
+    # Pulse pressure is determined by artieral blood volume.
+    # Multiply the active particles by pressure coefficient (0.6)
+    pulse_pressure = len(blood_particles) * 0.06
+
+    instant_bp = int(base_diastolic +   pulse_pressure)
+
     bpm_text = my_font.render(f"Heart Rate: {bpm} BPM", True, (50, 50, 50))
     status_render = my_font.render(f"Status: {status_text} (EF: {ef_display}%)", True, (50, 50, 50))
     tone_render = my_font.render(f"Vessel Tone: {tone_text}", True, (50, 50, 50))
+    bp_render = my_font.render(f"Arterial Pressure: {instant_bp} mmHg", True, (220, 20, 60))
+
     screen.blit(bpm_text, (20, 20))
     screen.blit(status_render, (20, 50))
     screen.blit(tone_render, (20, 80))
+    screen.blit(bp_render, (20, 370))
 
 
     pygame.display.flip()
