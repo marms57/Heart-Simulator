@@ -9,7 +9,7 @@ my_font = pygame.font.SysFont('arial', 24)
 screen = pygame.display.set_mode((600, 500))
 clock = pygame.time.Clock()
 
-# CLINICAL DATA (change these to see the difference)
+# CLINICAL DATA
 healthy_ef = 0.65 # healthy
 hf_ef = 0.25 # HF
 is_healthy = True #start simulation in healthy state
@@ -17,6 +17,7 @@ ejection_fraction = healthy_ef
 
 bpm = 60 #resting HR
 vessel_friction = 0.99 # peripheral resistance factor
+edv = 100 # end-diastolic volume (ml)
 
 # Draw the aorta
 aorta_rect = pygame.Rect(150, 50, 300, 300) # invisible walls for the arch
@@ -45,7 +46,10 @@ while running:
     for event in pygame.event.get():
         if event.type == pygame.QUIT:
             running = False
+        
+        # ---- KEYBOARD CONTROLS ----
 
+            # ---- HEART RATE CONTROL ----
         if event.type == pygame.KEYDOWN:
             if event.key == pygame.K_UP:
                 bpm = min(220, bpm + 10) # heart rate capped
@@ -63,14 +67,19 @@ while running:
             if event.key == pygame.K_RIGHT:
                 vessel_friction = max(0.90, vessel_friction - 0.01) # decrease resistance
 
-
+            #---- PRELOAD CONTROL ----
+            if event.key == pygame.K_w:
+                edv = min(160, edv + 10) # increase venous return
+            if event.key == pygame.K_s:
+                edv = max(40, edv - 10) # decrease venous return
         
 
     screen.fill((255, 255, 255)) # White background
 
     # 3. ---- BEAT LOGIC ----
-    pulse = math.cos(t) * (ejection_fraction * 40)
-    current_radius = 80 + pulse
+    base_radius = 30 + (edv * 0.5) # preload effect on stroke volume
+    pulse = math.cos(t) * (ejection_fraction * (edv * 0.4)) # pulse effect on stroke volume
+    current_radius = pulse + base_radius
 
     # 3.1 ---- TRIGGER BLOOD FLOW ----
     if math.sin(t) > 0.8:
@@ -176,30 +185,27 @@ while running:
         tone_text = "Low Afterload"
 
     # ---- BLOOD PRESSURE ESTIMATION ----
-    # Base diastolic pressure by vessel tone.
-    # Normal tone (0.99) = 80 mmHg, High Afterload (0.90) = 116 mmHg
-    base_diastolic = 80 + ((0.99 - vessel_friction) * 400)
-
-    # Sensor for arterial pressure, only detecting blood in the upper aorta
-    arch_particles = [p for p in blood_particles if p[1] < 200]
-
-    # Pulse pressure is determined by artieral blood volume.
-    # Multiply the active particles by pressure coefficient (0.6)
-    pulse_pressure = len(arch_particles) * 0.06
-
-    instant_bp = int(base_diastolic +   pulse_pressure)
+    base_diastolic = 80 + ((0.99 - vessel_friction) * 400)  # Normal tone (0.99) = 80 mmHg, High Afterload (0.90) = 116 mmHg
+    arch_particles = [p for p in blood_particles if p[1] < 200]  # Sensor for arterial pressure, only detecting blood in the upper aorta
+    pulse_pressure = len(arch_particles) * 0.06 # Multiply the active particles by pressure coefficient (0.6)
+    #instant_bp = int(base_diastolic +   pulse_pressure) USABLE?
+    systolic = int(base_diastolic + pulse_pressure)
+    diastolic = int(base_diastolic)
+    stroke_volume = int(ejection_fraction * edv)
 
     # ---- RENDER TEXT ----
 
     bpm_text = my_font.render(f"Heart Rate: {bpm} BPM", True, (50, 50, 50))
     status_render = my_font.render(f"Status: {status_text} (EF: {ef_display}%)", True, (50, 50, 50))
     tone_render = my_font.render(f"Vessel Tone: {tone_text}", True, (50, 50, 50))
-    bp_render = my_font.render(f"Arterial Pressure: {instant_bp} mmHg", True, (220, 20, 60))
+    bp_render = my_font.render(f"Arterial Pressure: {systolic}/{diastolic} mmHg", True, (220, 20, 60))
+    preload_render = my_font.render(f"Preload (EDV): {edv} mL | Stroke Volume: {stroke_volume} mL", True, (20, 100, 200))
 
     screen.blit(bpm_text, (20, 20))
     screen.blit(status_render, (20, 50))
     screen.blit(tone_render, (20, 80))
     screen.blit(bp_render, (20, 370))
+    screen.blit(preload_render, (20, 340))
 
 
     pygame.display.flip()
