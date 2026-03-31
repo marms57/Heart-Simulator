@@ -6,7 +6,7 @@ import random
 pygame.init()
 pygame.font.init()
 my_font = pygame.font.SysFont('arial', 24)
-screen = pygame.display.set_mode((600, 400))
+screen = pygame.display.set_mode((600, 500))
 clock = pygame.time.Clock()
 
 # CLINICAL DATA (change these to see the difference)
@@ -22,8 +22,20 @@ vessel_friction = 0.99 # peripheral resistance factor
 aorta_rect = pygame.Rect(150, 50, 300, 300) # invisible walls for the arch
 AORTA_COLOR = (100, 100, 100) # grey
 
-# ---- PARTICLE LIST ----
+# ---- DATA LIST ----
 blood_particles = []
+ecg_trace = []
+
+# ---- ECG MATHS ENGINES ----
+def get_ecg_value(time_val):
+    phase = time_val % (2 * math.pi) #locks ecg to physical heartbeat
+    p = 8 * math.exp(-((phase - 0.2) ** 2) / 0.05) # math bell curve to build the wave
+    q = -10 * math.exp(-((phase - 0.55) ** 2) / 0.005)
+    r = 45 * math.exp(-((phase - 0.65) ** 2) / 0.005)
+    s = -15 * math.exp(-((phase - 0.75) ** 2) / 0.005)
+    t = 12 * math.exp(-((phase - 2.5) ** 2) / 0.1)
+    return -(p + q + r + s + t)
+
 
 # 2. ---- MAIN LOOP ----
 running = True
@@ -136,6 +148,18 @@ while running:
     inner_rect = aorta_rect.inflate(-100, -100)
     pygame.draw.arc(screen, AORTA_COLOR, inner_rect, -0.1, 3.14, 5)
 
+    # ---- ECG TRACE ----
+    pygame.draw.rect(screen, (15, 15, 15), (0, 400, 600, 100)) # ECG background
+    current_ecg_y = 450 + get_ecg_value(t) #calculate current ECG value
+    ecg_trace.append(current_ecg_y) #add to trace list
+
+    if len(ecg_trace) > 600: #limit trace length
+        ecg_trace.pop(0)
+
+    if len(ecg_trace) > 1:
+        points = [(i, ecg_trace[i]) for i in range(len(ecg_trace))]
+        pygame.draw.lines(screen, (50, 255, 50), False, points, 2)
+
     # Clinical monitor (BPM)
     status_text = "Healthy" if is_healthy else "Heart Failure"
     ef_display = int(ejection_fraction * 100)
@@ -156,11 +180,16 @@ while running:
     # Normal tone (0.99) = 80 mmHg, High Afterload (0.90) = 116 mmHg
     base_diastolic = 80 + ((0.99 - vessel_friction) * 400)
 
+    # Sensor for arterial pressure, only detecting blood in the upper aorta
+    arch_particles = [p for p in blood_particles if p[1] < 200]
+
     # Pulse pressure is determined by artieral blood volume.
     # Multiply the active particles by pressure coefficient (0.6)
-    pulse_pressure = len(blood_particles) * 0.06
+    pulse_pressure = len(arch_particles) * 0.06
 
     instant_bp = int(base_diastolic +   pulse_pressure)
+
+    # ---- RENDER TEXT ----
 
     bpm_text = my_font.render(f"Heart Rate: {bpm} BPM", True, (50, 50, 50))
     status_render = my_font.render(f"Status: {status_text} (EF: {ef_display}%)", True, (50, 50, 50))
