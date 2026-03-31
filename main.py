@@ -10,7 +10,8 @@ pygame.font.init()
 my_font = pygame.font.SysFont('trebuchetms', 22) 
 bold_font = pygame.font.SysFont('trebuchetms', 24, bold=True)
 
-screen = pygame.display.set_mode((600, 500))
+# FIX 1: Expanded screen width from 600 to 900 for a true dashboard layout
+screen = pygame.display.set_mode((900, 500))
 clock = pygame.time.Clock()
 
 # CLINICAL DATA
@@ -24,18 +25,18 @@ vessel_friction = 0.99
 edv = 100 
 
 # ---- UI COLORS (DARK MODE) ----
-BG_COLOR = (25, 28, 36)          # Deep Charcoal
-PANEL_COLOR = (40, 45, 55)       # Lighter Charcoal for UI boxes
-AORTA_COLOR = (120, 125, 140)    # Soft metallic grey
-HEART_COLOR = (240, 40, 70)      # Vibrant Crimson
-BLOOD_COLOR = (255, 60, 90)      # Glowing Neon Red
-TEXT_MUTED = (180, 185, 200)     # Soft White/Grey
-COLOR_HR = (50, 255, 100)        # Neon Green
-COLOR_BP = (255, 80, 80)         # Neon Pink/Red
-COLOR_VOL = (80, 200, 255)       # Neon Cyan
+BG_COLOR = (25, 28, 36)          
+PANEL_COLOR = (40, 45, 55)       
+AORTA_COLOR = (120, 125, 140)    
+HEART_COLOR = (240, 40, 70)      
+BLOOD_COLOR = (255, 60, 90)      
+TEXT_MUTED = (180, 185, 200)     
+COLOR_HR = (50, 255, 100)        
+COLOR_BP = (255, 80, 80)         
+COLOR_VOL = (80, 200, 255)       
 
-# Draw the aorta
-aorta_rect = pygame.Rect(150, 50, 300, 300) 
+# FIX 2: Shifted Aorta 300px to the right
+aorta_rect = pygame.Rect(450, 50, 300, 300) 
 
 # ---- DATA LIST ----
 blood_particles = []
@@ -79,7 +80,6 @@ while running:
             if event.key == pygame.K_s:
                 edv = max(40, edv - 10) 
         
-    # Apply Dark Background
     screen.fill(BG_COLOR) 
 
     # 3. ---- BEAT LOGIC ----
@@ -91,7 +91,8 @@ while running:
     if math.sin(t) > 0.8:
         num_particles = int(ejection_fraction * edv)
         for _ in range(num_particles):
-            start_x = 220 + random.uniform(-15, 15)
+            # Shifted spawn location 300px to the right
+            start_x = 520 + random.uniform(-15, 15)
             start_y = 120 + random.uniform(-15, 15)
             speed = abs((ejection_fraction * 10) + random.uniform(2, 4))
             lift = 12 + random.uniform(-1, 2) 
@@ -99,7 +100,8 @@ while running:
 
     # 3.1.1 ---- UPDATE AND DRAW THE PARTICLES ----
     gravity = 0.1 
-    center_x, center_y = 300, 200
+    # Shifted center of physics engine 300px to the right
+    center_x, center_y = 600, 200
 
     for p in blood_particles[:]: 
         p[0] += p[2] 
@@ -112,7 +114,8 @@ while running:
                 
         p[2] *= vessel_friction 
 
-        if p[1] > 160 and p[3] < 0 and p[0] < 280:
+        # Shifted Valve Kill Zone
+        if p[1] > 160 and p[3] < 0 and p[0] < 580:
             blood_particles.remove(p)
             continue
 
@@ -129,41 +132,42 @@ while running:
             else:
                 p[2] *= 0.5 
 
-        if distance < 105 and angle < 0.2 and p[0] > 280:
+        # Shifted Inner Wall Logic
+        if distance < 105 and angle < 0.2 and p[0] > 580:
             p[3] *= -0.5
             p[0] = center_x + math.cos(angle) * 110
             p[1] = center_y + math.sin(angle) * 110
 
-        # Draw glowing blood drops
         pygame.draw.circle(screen, BLOOD_COLOR, (int(p[0]), int(p[1])), 4)
 
-        if p[0] > 600 or p[1] > 400:
+        # Adjusted off-screen removal width to 900
+        if p[0] > 900 or p[1] > 400:
             blood_particles.remove(p)
 
     # 4.0 ---- DRAW THE HEART & PLUMBING ----
-    # Inner wall
     inner_rect = aorta_rect.inflate(-100, -100)
     pygame.draw.arc(screen, AORTA_COLOR, inner_rect, -0.1, 3.14, 6)
-    # Outer wall
     pygame.draw.arc(screen, AORTA_COLOR, aorta_rect, -0.2, 3.14, 6)
     
-    # Heart Ventricle
-    pygame.draw.circle(screen, HEART_COLOR, (200, 200), int(current_radius))
-    pygame.draw.circle(screen, (150, 20, 40), (200, 200), int(current_radius), 3) # Inner shadow border
+    # Shifted Ventricle to the right
+    pygame.draw.circle(screen, HEART_COLOR, (500, 200), int(current_radius))
+    pygame.draw.circle(screen, (150, 20, 40), (500, 200), int(current_radius), 3) 
 
     # 5.0 ---- TELEMETRY ECG TRACE ----
-    pygame.draw.rect(screen, (10, 20, 15), (0, 400, 600, 100)) # Dark green bg
+    # Expanded ECG background width to 900
+    pygame.draw.rect(screen, (10, 20, 15), (0, 400, 900, 100)) 
     
-    # Draw ECG Grid lines
-    for i in range(0, 600, 25):
+    # Expanded Grid
+    for i in range(0, 900, 25):
         pygame.draw.line(screen, (20, 45, 30), (i, 400), (i, 500))
     for i in range(400, 500, 25):
-        pygame.draw.line(screen, (20, 45, 30), (0, i), (600, i))
+        pygame.draw.line(screen, (20, 45, 30), (0, i), (900, i))
 
     current_ecg_y = 450 + get_ecg_value(t) 
     ecg_trace.append(current_ecg_y) 
 
-    if len(ecg_trace) > 600: 
+    # Expanded trace limit to 900
+    if len(ecg_trace) > 900: 
         ecg_trace.pop(0)
 
     if len(ecg_trace) > 1:
@@ -172,11 +176,9 @@ while running:
 
     # 6.0 ---- CLINICAL DASHBOARD (UI PANELS) ----
     
-    # Status Panel (Top Left)
-    pygame.draw.rect(screen, PANEL_COLOR, (15, 15, 250, 95), border_radius=8)
-    
-    # Hemodynamics Panel (Bottom Left, above ECG)
-    pygame.draw.rect(screen, PANEL_COLOR, (15, 290, 320, 95), border_radius=8)
+    # FIX 3: Expanded Panel Widths from 250 to 340 to prevent text overflow!
+    pygame.draw.rect(screen, PANEL_COLOR, (15, 15, 340, 95), border_radius=8)
+    pygame.draw.rect(screen, PANEL_COLOR, (15, 290, 340, 95), border_radius=8)
 
     # Variables for text
     status_text = "Healthy" if is_healthy else "Heart Failure"
@@ -194,7 +196,6 @@ while running:
     stroke_volume = int(ejection_fraction * edv)
 
     # ---- RENDER TEXT TO PANELS ----
-    # Panel 1: Rhythm & Status
     bpm_text = bold_font.render(f"HR: {bpm} BPM", True, COLOR_HR)
     status_render = my_font.render(f"LV Status: {status_text} ({ef_display}%)", True, TEXT_MUTED)
     tone_render = my_font.render(f"Tone: {tone_text}", True, TEXT_MUTED)
@@ -203,7 +204,6 @@ while running:
     screen.blit(status_render, (25, 52))
     screen.blit(tone_render, (25, 77))
 
-    # Panel 2: Hemodynamics
     bp_text = bold_font.render(f"Arterial BP: {systolic}/{diastolic} mmHg", True, COLOR_BP)
     preload_text = my_font.render(f"Preload (EDV): {edv} mL", True, COLOR_VOL)
     sv_text = my_font.render(f"Stroke Volume: {stroke_volume} mL", True, COLOR_VOL)
