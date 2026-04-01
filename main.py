@@ -36,13 +36,24 @@ COLOR_BP = (255, 80, 80)
 COLOR_VOL = (80, 200, 255)       
 
 # FIX 2: Shifted Aorta 300px to the right
-aorta_rect = pygame.Rect(450, 50, 300, 300) 
+#aorta_rect = pygame.Rect(450, 50, 300, 300) 
 
 # ---- DATA LIST ----
 blood_particles = []
 ecg_trace = []
 
-# ---- ECG MATHS ENGINES ----
+# ---- AORTA POINTS ----
+outer_wall = [
+    (450,200), (450, 100), (465, 55), (500, 25),
+    (550, 20), (600, 35), (650, 120), (650, 500)
+]
+inner_wall = [
+    (500, 200), (500, 120), (515, 85), (530, 70),
+    (560, 70), (585, 85), (600, 120), (600, 500)
+]
+
+
+# ---- MATHS AND PHYSICS ENGINES ----
 def get_ecg_value(time_val):
     phase = time_val % (2 * math.pi) 
     p = 8 * math.exp(-((phase - 0.2) ** 2) / 0.05) 
@@ -52,6 +63,37 @@ def get_ecg_value(time_val):
     t = 12 * math.exp(-((phase - 2.5) ** 2) / 0.1)
     return -(p + q + r + s + t)
 
+def closest_point_on_line(p, a, b):
+    ap = (p[0] - a[0], p[1] - a[1])
+    ab = (b[0] - a[0], b[1] - a[1])
+    ab2 = ab[0]**2 + ab[1]**2
+    if ab2 == 0: return a
+    t = max(0, min(1, (ap[0]*ab[0] + ap[1]*ab[1]) / ab2))
+    return (a[0] + ab[0] * t, a[1] + ab[1] * t)
+
+def resolve_collision(particle, a, b):
+    px, py, vx, vy = particle[0], particle[1], particle[2], -particle[3]
+
+    cx, cy = closest_point_on_line((px, py), a, b)
+    dx, dy = px - cx, py - cy
+    dist = math.sqrt(dx**2 + dy**2)
+    radius = 8
+
+    if dist < radius and dist > 0:
+        nx, ny = dx / dist, dy / dist
+        overlap = radius - dist
+        particle[0] += nx * overlap
+        particle[1] += ny * overlap
+
+        dot_product = vx * nx + vy * ny
+        if dot_product < 0:
+            bounce = 0.1
+            slide = 0.98
+
+            new_vx = (vx - (1 + bounce) * dot_product * nx) * slide
+            new_vy = (vy - (1 + bounce) * dot_product * ny) * slide
+            particle[2] = new_vx
+            particle[3] = -new_vy
 
 # 2. ---- MAIN LOOP ----
 running = True
@@ -92,73 +134,51 @@ while running:
     # 3.1 ---- TRIGGER BLOOD FLOW ----
     if is_systole:
         num_particles = int(ejection_fraction * edv)
-        start_x = 475 + random.uniform(-10, 10)
-        start_y = 230 + random.uniform(-10, 15)
-        speed = abs((ejection_fraction * 7) + random.uniform(1, 3))
-        lift = 14 + random.uniform(-2, 3)
-        blood_particles.append([start_x, start_y, speed, lift])
-                                    
-    """""
-    if math.sin(t) > 0.8:
-        num_particles = int(ejection_fraction * edv)
         for _ in range(num_particles):
-            # Shifted spawn location 300px to the right
-            start_x = 520 + random.uniform(-15, 15)
-            start_y = 120 + random.uniform(-15, 15)
-            speed = abs((ejection_fraction * 10) + random.uniform(2, 4))
-            lift = 12 + random.uniform(-1, 2) 
+            start_x = 475 + random.uniform(-10, 10)
+            start_y = 230 + random.uniform(-10, 15)
+            speed = random.uniform(-1.0, 1.0)
+            lift = abs((ejection_fraction * 15) + random.uniform(4, 7))
             blood_particles.append([start_x, start_y, speed, lift])
-    """""
 
     # 3.1.1 ---- UPDATE AND DRAW THE PARTICLES ----
     gravity = 0.1 
     center_x, center_y = 600, 200
     
     for p in blood_particles[:]: 
-        p[0] += p[2] 
-        p[1] -= p[3] 
-        p[3] -= gravity 
-
-        if p[0] > center_x:
-            if p[2] > 0:
-                p[2] -= 0.05 
+        p[3] -= gravity
+        steps = 3
+        
+        # Start of Sub-step loop
+        for _ in range(steps):
+            p[0] += p[2] / steps
+            p[1] -= p[3] / steps
                 
+            # FIX: These collision checks MUST be indented inside the steps loop!
+            # ---- COLLISION WITH AORTA WALLS ----
+            for i in range(len(outer_wall) - 1):
+                resolve_collision(p, outer_wall[i], outer_wall[i + 1])
+
+            for i in range(len(inner_wall) - 1):
+                resolve_collision(p, inner_wall[i], inner_wall[i + 1])
+        # End of Sub-step loop
+
         p[2] *= vessel_friction 
 
-        # Shifted Valve Kill Zone
-        if p[1] > 190 and p[3] < 0 and p[0] < 550:
+        # Valve Kill Zone
+        if p[1] > 200 and p[3] < 0 and p[0] < 550:
             blood_particles.remove(p)
             continue
-
-        dx = p[0] - center_x
-        dy = p[1] - center_y
-        distance = math.sqrt(dx**2 + dy**2)
-        angle = math.atan2(dy, dx)
-
-        if distance > 148 and angle < 0.2:
-            p[0] = center_x + math.cos(angle) * 146
-            p[1] = center_y + math.sin(angle) * 146
-            if angle < -0.5:
-                p[3] = -abs(p[3] * 0.4) 
-            else:
-                p[2] *= 0.5 
-
-        # Shifted Inner Wall Logic
-        if distance < 105 and angle < 0.2 and p[0] > 580:
-            p[3] *= -0.5
-            p[0] = center_x + math.cos(angle) * 110
-            p[1] = center_y + math.sin(angle) * 110
 
         pygame.draw.circle(screen, BLOOD_COLOR, (int(p[0]), int(p[1])), 4)
 
         # Adjusted off-screen removal width to 900
-        if p[0] > 900 or p[1] > 400:
+        if p[0] > 900 or p[1] > 500:
             blood_particles.remove(p)
 
     # 4.0 ---- DRAW THE HEART & PLUMBING ----
-    inner_rect = aorta_rect.inflate(-100, -100)
-    pygame.draw.arc(screen, AORTA_COLOR, inner_rect, -0.1, 3.14, 6)
-    pygame.draw.arc(screen, AORTA_COLOR, aorta_rect, -0.2, 3.14, 6)
+    pygame.draw.lines(screen, AORTA_COLOR, False, outer_wall, 6)
+    pygame.draw.lines(screen, AORTA_COLOR, False, inner_wall, 6)
 
     # ---- 4.1 LEFT VENTRICLE POLYGON ----
     apex_x  = 475
@@ -186,12 +206,6 @@ while running:
         pygame.draw.line(screen, (220, 220, 220), (450, 200), (475, 208), 4)
         pygame.draw.line(screen, (220, 220, 220), (500, 200), (475, 208), 4)
 
-
-    """""
-    # Shifted Ventricle to the right
-    pygame.draw.circle(screen, HEART_COLOR, (500, 200), int(current_radius))
-    pygame.draw.circle(screen, (150, 20, 40), (500, 200), int(current_radius), 3) 
-    """
     # 5.0 ---- TELEMETRY ECG TRACE ----
     # Expanded ECG background width to 900
     pygame.draw.rect(screen, (10, 20, 15), (0, 400, 900, 100)) 
