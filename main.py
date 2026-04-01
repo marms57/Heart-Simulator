@@ -83,11 +83,22 @@ while running:
     screen.fill(BG_COLOR) 
 
     # 3. ---- BEAT LOGIC ----
-    base_radius = 30 + (edv * 0.5) 
+    is_systole = math.sin(t) > 0.8 # True when the heart is contracting
+    #polygon math update
+    base_stretch = 20 + (edv * 0.4) 
     pulse = math.cos(t) * (ejection_fraction * (edv * 0.4)) 
-    current_radius = pulse + base_radius
+    current_stretch = pulse + base_stretch
 
     # 3.1 ---- TRIGGER BLOOD FLOW ----
+    if is_systole:
+        num_particles = int(ejection_fraction * edv)
+        start_x = 475 + random.uniform(-10, 10)
+        start_y = 230 + random.uniform(-10, 15)
+        speed = abs((ejection_fraction * 7) + random.uniform(1, 3))
+        lift = 14 + random.uniform(-2, 3)
+        blood_particles.append([start_x, start_y, speed, lift])
+                                    
+    """""
     if math.sin(t) > 0.8:
         num_particles = int(ejection_fraction * edv)
         for _ in range(num_particles):
@@ -97,12 +108,12 @@ while running:
             speed = abs((ejection_fraction * 10) + random.uniform(2, 4))
             lift = 12 + random.uniform(-1, 2) 
             blood_particles.append([start_x, start_y, speed, lift])
+    """""
 
     # 3.1.1 ---- UPDATE AND DRAW THE PARTICLES ----
     gravity = 0.1 
-    # Shifted center of physics engine 300px to the right
     center_x, center_y = 600, 200
-
+    
     for p in blood_particles[:]: 
         p[0] += p[2] 
         p[1] -= p[3] 
@@ -115,7 +126,7 @@ while running:
         p[2] *= vessel_friction 
 
         # Shifted Valve Kill Zone
-        if p[1] > 160 and p[3] < 0 and p[0] < 580:
+        if p[1] > 190 and p[3] < 0 and p[0] < 550:
             blood_particles.remove(p)
             continue
 
@@ -148,11 +159,39 @@ while running:
     inner_rect = aorta_rect.inflate(-100, -100)
     pygame.draw.arc(screen, AORTA_COLOR, inner_rect, -0.1, 3.14, 6)
     pygame.draw.arc(screen, AORTA_COLOR, aorta_rect, -0.2, 3.14, 6)
-    
+
+    # ---- 4.1 LEFT VENTRICLE POLYGON ----
+    apex_x  = 475
+    apex_y  = 200 + (current_stretch * 2.0)
+    lw_x    = 475 - (current_stretch * 0.9)
+    lw_y    = 200 + (current_stretch * 0.8)
+    rw_x    = 475 + (current_stretch * 0.9)
+    rw_y    = 200 + (current_stretch * 0.8)
+
+    lv_points = [
+        (450, 200),         # Left aortic root
+        (lw_x, lw_y),       # Left free wall
+        (apex_x, apex_y),   # Apex
+        (rw_x, rw_y),       # Septum
+        (500, 200)          # Right aortic root
+    ]
+    pygame.draw.polygon(screen, HEART_COLOR, lv_points)
+    pygame.draw.polygon(screen, (150, 20, 40), lv_points, 4)
+
+    # ---- 4.2 Valve ----
+    if is_systole:
+        pygame.draw.line(screen, (220, 220, 220), (450, 200), (455, 160), 4)
+        pygame.draw.line(screen, (220, 220, 220), (500, 200), (495, 160), 4)
+    else:
+        pygame.draw.line(screen, (220, 220, 220), (450, 200), (475, 208), 4)
+        pygame.draw.line(screen, (220, 220, 220), (500, 200), (475, 208), 4)
+
+
+    """""
     # Shifted Ventricle to the right
     pygame.draw.circle(screen, HEART_COLOR, (500, 200), int(current_radius))
     pygame.draw.circle(screen, (150, 20, 40), (500, 200), int(current_radius), 3) 
-
+    """
     # 5.0 ---- TELEMETRY ECG TRACE ----
     # Expanded ECG background width to 900
     pygame.draw.rect(screen, (10, 20, 15), (0, 400, 900, 100)) 
