@@ -6,11 +6,10 @@ import random
 pygame.init()
 pygame.font.init()
 
-# Using a slightly sleeker default font if available, fallback to arial
 my_font = pygame.font.SysFont('trebuchetms', 22) 
 bold_font = pygame.font.SysFont('trebuchetms', 24, bold=True)
 
-# FIX 1: Expanded screen width from 600 to 900 for a true dashboard layout
+# Expanded screen width from 600 to 900 for a true dashboard layout
 screen = pygame.display.set_mode((900, 500))
 clock = pygame.time.Clock()
 
@@ -35,7 +34,6 @@ COLOR_HR = (50, 255, 100)
 COLOR_BP = (255, 80, 80)         
 COLOR_VOL = (80, 200, 255)       
 
-# FIX 2: Shifted Aorta 300px to the right
 #aorta_rect = pygame.Rect(450, 50, 300, 300) 
 
 # ---- DATA LIST ----
